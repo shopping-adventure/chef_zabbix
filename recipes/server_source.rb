@@ -10,10 +10,12 @@
 include_recipe "zabbix::common"
 include_recipe "zabbix::server_common"
 
+Chef::Log.warn("KEV 2 #{node['zabbix']['web']['ip']}")
+
 packages = Array.new
 case node['platform']
 when "ubuntu","debian"
-  packages = %w{ fping libcurl4-openssl-dev libiksemel-utils libiksemel-dev libiksemel3 libsnmp-dev snmp}
+  packages = %w{ fping libcurl4-openssl-dev libiksemel-utils libiksemel-dev libiksemel3 libsnmp-dev snmp libnet-dns-sec-perl}
   case node['zabbix']['database']['install_method']
   when 'mysql', 'rds_mysql'
     packages.push('libmysql++-dev', 'libmysql++3', 'libcurl3', 'php5-mysql', 'php5-gd' )
@@ -44,11 +46,6 @@ when "redhat","centos","scientific","amazon","oracle"
   init_template = 'zabbix_server.init-rh.erb'
 end
 
-packages.each do |pck|
-  package pck do
-    action :install
-  end
-end
 
 configure_options = node['zabbix']['server']['configure_options'].dup
 configure_options = (configure_options || Array.new).delete_if do |option|
@@ -60,6 +57,12 @@ configure_options.each do |opt|
         when '--with-ssh2'
         packages.push("libssh2-1-dev")
         end
+end
+
+packages.each do |pck|
+  package pck do
+    action :install
+  end
 end
 
 
@@ -108,6 +111,7 @@ template "#{node['zabbix']['etc_dir']}/zabbix_server.conf" do
     :dbuser             => node['zabbix']['database']['dbuser'],
     :dbpassword         => node['zabbix']['database']['dbpassword'],
     :dbport             => node['zabbix']['database']['dbport'],
+    :dbsocket            => node['zabbix']['database']['access_methode'],
     :java_gateway       => node['zabbix']['server']['java_gateway'],
     :java_gateway_port  => node['zabbix']['server']['java_gateway_port'],
     :java_pollers       => node['zabbix']['server']['java_pollers']
