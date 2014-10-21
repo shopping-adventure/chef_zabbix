@@ -43,6 +43,12 @@ if zabbix_server
 
   # Ip of the node
   ipadd=(node["cloud"]) ? node["cloud"]["local_ipv4"] : node["ipaddress"]
+  ip6add=""
+  if node["cloud"]["local_ipv6"]
+  ip6add =  node["cloud"]["local_ipv6"]
+  node.default['zabbix']['agent']['interfaces'] = [ "zabbix_agentv4", "zabbix_agentv6" ]
+  node.save
+  end
 
   # Dns of the node
   dnsname=(node["cloud"]) ? node["cloud"]["local_hostname"] : node["fqdn"]
@@ -50,11 +56,19 @@ if zabbix_server
 
   #Interface definition
   interface_definitions = {
-    :zabbix_agent => {
+    :zabbix_agentv4 => {
     :type => 1,
     :main => 1,
     :useip => 1,
     :ip => ipadd,
+    :dns => dnsname,
+    :port => "10050"
+  },
+    :zabbix_agentv6 => {
+    :type => 1,
+    :main => 0,
+    :useip => 1,
+    :ip => ip6add,
     :dns => dnsname,
     :port => "10050"
   },
