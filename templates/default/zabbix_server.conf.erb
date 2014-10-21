@@ -6,11 +6,17 @@
 LogFile=<%= node['zabbix']['server']['log_file'] %>
 <% end -%>
 
-DBHost=<%= @dbhost %>
 DBName=<%= @dbname %>
 DBUser=<%= @dbuser %>
 DBPassword=<%= @dbpassword %>
 DBPort=<%= @dbport %>
+<%if @dbsocket == 'socket'%>
+#Access Db over local socket
+DBSocket=<%=node['mysql']['server']['socket']%>
+<% else %>
+#Access Db over ip
+DBHost=<%= @dbhost %>
+<%end%>
 
 DebugLevel=<%= node['zabbix']['server']['log_level'] %>
 PidFile=<%= node['zabbix']['run_dir'] %>/zabbix_server.pid
@@ -25,11 +31,16 @@ JavaGatewayPort=<%= @java_gateway_port %>
 StartJavaPollers=<%= @java_pollers %>
 
 ExternalScripts=<%= node['zabbix']['server']['externalscriptspath'] %>
-ListenIP=127.0.0.1,<%= node['zabbix']['web']['ip'] %>
+ListenIP=<%count=0; node['zabbix']['web']['ip'].each do |ip|; if count==1%>,<%end%><%=ip%><%count=1 end%>
 
 FpingLocation=/usr/bin/fping
 Fping6Location=/usr/bin/fping6
 
 StartPingers=<%= node['zabbix']['server']['startpinger'] %>
 
+StartPollers=<%= node['zabbix']['server']['startpoller'] %>
+
+StartHTTPPollers=<%= node['zabbix']['server']['starthttppoller'] %>
+
 Timeout=<%= node['zabbix']['server']['timeout']%>
+CacheSize=<%= node['zabbix']['server']['cachesize']%>
