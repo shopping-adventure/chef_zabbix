@@ -182,6 +182,7 @@ action :update do
     connection.query(host_update_request)
 
     new_host_interfaces.each do |interface|
+    Chef::Log.info("Zabbix interface : #{interface.merge(:hostid => host[:hostid])}")
       create_interface_request = {
         :method => "hostinterface.create",
         :params => interface.merge(:hostid => host["hostid"])
@@ -202,8 +203,7 @@ end
 def determine_new_host_interfaces(existing_interfaces, desired_interfaces)
   desired_interfaces.reject do |desired_interface|
     existing_interfaces.any? do |existing_interface|
-      existing_interface["type"] == desired_interface["type"] &&
-        existing_interface["port"] == desired_interface["port"]
+      existing_interface[:ip] == desired_interface[:ip] 
     end
   end
 end
