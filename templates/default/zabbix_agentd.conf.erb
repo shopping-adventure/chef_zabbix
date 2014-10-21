@@ -2,9 +2,13 @@
 # Created by chef
 Hostname=<%= (node['zabbix']['agent']['hostname']) ? node['zabbix']['agent']['hostname'] : node["hostname"]%>
 Include=<%= node['zabbix']['agent']['include_dir'] %>
-
+AllowRoot=1
 Server=<%= node.zabbix.agent.servers.join(',') %>
 #Server=<%= node['zabbix']['agent']['servers'].first %>
+
+#Log
+#LogFile=/tmp/zabbix.log
+#DebugLevel=4
 
 #ServerActive=<%= node['zabbix']['agent']['servers'].first %>
 <% if node.zabbix.agent.servers_active.first -%>
@@ -33,6 +37,7 @@ StartAgents=<%= node['zabbix']['agent']['start_agents'] %>
 <% end -%>
 
 ListenIP=<%= (node["cloud"]) ? node["cloud"]["local_ipv4"] : node["ipaddress"] %>
+#<%= (node["cloud"]["public_ipv6"]) ? ("," + node["cloud"]["local_ipv6"]) : ""%>
 
 ListenPort=<%=node['zabbix']['agent']['listen_port'] %>
 
@@ -66,7 +71,8 @@ UserParameter=mysql.version,mysql -V
 ### For percona
 UserParameter=mysql.percona.processlist,/usr/lib64/nagios/plugins/pmp-check-mysql-processlist -l dbbackup -p <%=node["mysql"]["server_dbbackup_password"]%>
 UserParameter=mysql.percona.innodb,/usr/lib64/nagios/plugins/pmp-check-mysql-innodb -l dbbackup -p <%=node["mysql"]["server_dbbackup_password"]%>
-UserParameter=mysql.percona.table-checksum,/usr/bin/pt-table-checksum u=root,h=<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : node['ipaddress']%>,p=<%=node["mysql"]["server_root_password"]%>,P=<%=node["mysql"]["port"]%> --recursion-method=dsn=h=<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : node['ipaddress']%>,P=<%=node["mysql"]["port"]%>,D=percona,t=dsns --chunk-time=4; a="$?"; if [ $a -ne "0" ]; then echo "Return code : $a - KO"; echo "Launching replicate comparison"; /usr/bin/pt-table-checksum --replicate-check-only u=root,h=<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : node['ipaddress']%>,p=<%=node["mysql"]["server_root_password"]%>,P=<%=node["mysql"]["port"]%> --recursion-method=dsn=h=<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : node['ipaddress']%>,P=<%=node["mysql"]["port"]%>,D=percona,t=dsns --chunk-time=4;  else echo "OK"; fi
+#UserParameter=mysql.percona.table-checksum,/usr/bin/pt-table-checksum u=root,h=<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : node['ipaddress']%>,p=<%=node["mysql"]["server_root_password"]%>,P=<%=node["mysql"]["port"]%> --recursion-method=dsn=h=<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : node['ipaddress']%>,P=<%=node["mysql"]["port"]%>,D=percona,t=dsns --chunk-time=6; a="$?"; if [ $a -ne "0" ]; then echo "Return code : $a - KO"; echo "Launching replicate comparison"; /usr/bin/pt-table-checksum --replicate-check-only u=root,h=<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : node['ipaddress']%>,p=<%=node["mysql"]["server_root_password"]%>,P=<%=node["mysql"]["port"]%> --recursion-method=dsn=h=<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : node['ipaddress']%>,P=<%=node["mysql"]["port"]%>,D=percona,t=dsns --chunk-time=4;  else echo "OK"; fi
+UserParameter=mysql.percona.table-checksum, /bin/cat /tmp/percona.stats 
 ########################################################################################
 
 
@@ -78,7 +84,8 @@ UserParameter=mysql.percona.table-checksum,/usr/bin/pt-table-checksum u=root,h=<
 ### Riak segment number - discovery rule
 UserParameter=riak_discover_part,perl /etc/zabbix/scripts_agentd/riak_part.pl
 UserParameter=riak_segment_part[*],ls /srv/sa_riak/shared/data/merge_index/$1/* | grep segment | wc -l
-
+UserParameter=riak_segment_totalnumber,du -sh *|grep -v "4,0K"|wc -l
+UserParameter=riak_segment_maxnumber,for i in `du -sh /srv/sa_riak/shared/data/merge_index/* |grep -v "4,0K"| awk {'print $2'}`; do ls $i |wc -l;done|sort -nr |head -n1
 
 ###
 ### riak-admin status
@@ -164,8 +171,8 @@ UserParameter=riak_admin_sa_riak_version,grep sa_riak_version /tmp/riak_admin_st
 
 ## General
 
-UserParameter=riak_process_beam.smp,ps aux | grep beam.smp | grep -v grep | wc -l
-UserParameter=riak_process_epmd,ps aux | grep epmd | grep -v grep | wc -l
+UserParameter=process_beam.smp,ps aux | grep beam.smp | grep -v grep | wc -l
+UserParameter=process_epmd,ps aux | grep epmd | grep -v grep | wc -l
 
 ##################################################################################################
 
@@ -179,7 +186,10 @@ UserParameter=postfix.mailq,mailq | grep -v "Mail queue is empty" | grep -c '^[0
 UserParameter=apache_stats[*],bash /etc/zabbix/scripts_agentd/zapache.sh \$1
 
 ###### HAPROXY #######################################################
-UserParameter=haproxy.stats[*], curl  "http://<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : '0.0.0.0'%>:22002/stats;csv" 2>/dev/null | grep "^$1,$2" | cut -d, -f $3
+UserParameter=haproxy.curlstats[*], curl  "http://<%= node.attribute?('cloud') ? node['cloud']['local_ipv4'] : '0.0.0.0'%>:22002/stats;csv" >/tmp/haproxy.stats
+UserParameter=haproxy.stats[*], cat /tmp/haproxy.stats | grep "^$1,$2" | cut -d, -f $3
+UserParameter=haproxy_backend_discover,perl /etc/zabbix/scripts_agentd/haproxy_backend.pl
+UserParameter=haproxy_frontend_discover,perl /etc/zabbix/scripts_agentd/haproxy_frontend.pl
 
 ###### VARNISH, cron needed #######################################################
 UserParameter=varnish.stat[*],cat /tmp/varnishstat | grep "$1 " | awk '{print $$2}'
@@ -187,14 +197,25 @@ UserParameter=varnish.stat[*],cat /tmp/varnishstat | grep "$1 " | awk '{print $$
 
 ###### WEB #######################################################
 #Wget response header
-UserParameter=web.page.code[*],curl -D $3 -o /dev/null http://$1/$2 && cat $3 | grep "$4" 
+#For refacto later
+UserParameter=web.page.code[*],/usr/bin/curl -sL -w "%{http_code} \\n" -o /dev/null http://$1/$2 
+#UserParameter=web.page.code[*],curl -D $3 -o /dev/null http://$1/$2 && cat $3 | grep "$4" 
 
 #Sitemap pubwebsite take long time to be executed, set a long timeout !
 UserParameter=web.page.sitemap[*],/usr/bin/wget --timeout $4 -q -O - 1 $1:$2/$3
 
+# Curl for ssl
+UserParameter=web.page.get2[*],/usr/bin/curl $3 --header "Accept: text/plain" -i http$4://$1/$2
+
+# $3 = url $5 = curl options
+UserParameter=web.page.get.curl[*],/usr/bin/curl $3 $5 -i http$4://$1/$2
+
+UserParameter=web.page.get_internal_status[*],/etc/zabbix/scripts_agentd/check_http_internal_status.sh $1 $2 $3 $4
+
 ##### Disk performance from https://github.com/grundic/zabbix-disk-performance
 
 UserParameter=custom.vfs.discover_disks,python /etc/zabbix/scripts_agentd/lld-disks.py
+UserParameter=custom.vfs.discover_physdisks,python /etc/zabbix/scripts_agentd/phys-disks.py
 
 UserParameter=custom.vfs.dev.read.ops[*],cat /proc/diskstats | grep $1 | head -1 | awk '{print $$4}'
 UserParameter=custom.vfs.dev.read.merged[*],cat /proc/diskstats | grep $1 | head -1 | awk '{print $$5}'
@@ -206,3 +227,21 @@ UserParameter=custom.vfs.dev.write.sectors[*],cat /proc/diskstats | grep $1 | he
 UserParameter=custom.vfs.dev.write.ms[*],cat /proc/diskstats | grep $1 | head -1 | awk '{print $$11}'
 UserParameter=custom.vfs.dev.io.active[*],cat /proc/diskstats | grep $1 | head -1 | awk '{print $$12}'
 UserParameter=custom.vfs.dev.io.ms[*],cat /proc/diskstats | grep $1 | head -1 | awk '{print $$13}'
+
+#Nginx
+UserParameter=nginx.active,/etc/zabbix/scripts_agentd/nginx.pl|cut -f1|cut -d" " -f2
+UserParameter=nginx.requests,/etc/zabbix/scripts_agentd/nginx.pl|cut -f2|cut -d" " -f2
+UserParameter=nginx.reading,/etc/zabbix/scripts_agentd/nginx.pl|cut -f3|cut -d" " -f2
+UserParameter=nginx.writing,/etc/zabbix/scripts_agentd/nginx.pl|cut -f4|cut -d" " -f2
+UserParameter=nginx.waiting,/etc/zabbix/scripts_agentd/nginx.pl|cut -f5|cut -d" " -f2
+UserParameter=nginx.accepts,/etc/zabbix/scripts_agentd/nginx.pl|cut -f6|cut -d" " -f2
+UserParameter=nginx.handle,/etc/zabbix/scripts_agentd/nginx.pl|cut -f7|cut -d" " -f2
+
+#Latence
+UserParameter=fping.latency[*],/usr/bin/fping -c $1 -q -p $2 $3 2>&1 | awk '{print $$5,$$8}' | tr -d "%|," | tr -s " " "/" | awk -F"/" '{print $$3,$$4,$$5,$$6}'
+UserParameter=fping.latency.avg[*],/usr/bin/fping -c $1 -q -p $2 $3 2>&1 | awk '{print $$5,$$8}' | tr -d "%|," | tr -s " " "/" | awk -F"/" '{print $$5}'
+UserParameter=fping.latency.min[*],/usr/bin/fping -c $1 -q -p $2 $3 2>&1 | awk '{print $$5,$$8}' | tr -d "%|," | tr -s " " "/" | awk -F"/" '{print $$4}'
+UserParameter=fping.latency.max[*],/usr/bin/fping -c $1 -q -p $2 $3 2>&1 | awk '{print $$5,$$8}' | tr -d "%|," | tr -s " " "/" | awk -F"/" '{print $$6}'
+
+#Smarctl
+UserParameter=hdd.smart[*],sudo /usr/sbin/smartctl -A /dev/$1|grep $2|awk '{print $$10}'
