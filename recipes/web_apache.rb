@@ -16,9 +16,9 @@ service 'php5-fpm' do
   action [ :disable, :stop ]
 end
 
-service 'apache2' do
-  action [ :enable, :start ]
-end
+#service 'apache2' do
+#  action [ :enable, :start ]
+#end
 
 
 directory node['zabbix']['install_dir'] do
@@ -32,32 +32,56 @@ end
 
 apps = []
 search(:apps) do |app|
-  (app["server_roles"] & node.run_list.roles).each do |app_role|
-    #db << data_bag_item("apps",app)
-    apps << app
+  #(app["server_roles"] & node.run_list.roles).each do |app_role|
+  app["server_roles"].each do |app_role|
+    if app_role == "zabbix-server"
+      #db << data_bag_item("apps",app)
+      apps << app
+    end
   end
 end
 
-bindip=""
-bindport=""
+bindings=Array.new
+
 apps.each do |a|
-  if a['bind'] && a['bind'][node.chef_environment] && a['bind'][node.chef_environment]['ip'] 
-    node.normal['zabbix']['web']['ip'] = a['bind'][node.chef_environment]['ip']
-    bindip =  a['bind'][node.chef_environment]['ip']
-  else
-    node.normal['zabbix']['web']['ip'] = (node["cloud"]) ? node["cloud"]["local_ipv4"] : node["ipaddress"]
-    bindip = (node["cloud"]) ? node["cloud"]["local_ipv4"] : node["ipaddress"]
+  if ((a['enable_ipv4'][node.chef_environment] == false) and (a['enable_ipv6'][node.chef_environment] == false))
+    Chef::Application.fatal! "Zabbix : Ipv4 and Ipv6 are disable, set attribut to true at least for one of them !"
   end
+  ipv4=a['enable_ipv4'][node.chef_environment]
+  ipv6=a['enable_ipv6'][node.chef_environment]
+  node.normal['zabbix']['web']['ip']=[]
+  bindport=""
 
   bindport = node['zabbix']['web']['port'] 
   if a['bind'] && a['bind'][node.chef_environment] && a['bind'][node.chef_environment]['port'] 
     node.normal['zabbix']['web']['port'] = a['bind'][node.chef_environment]['port']
     bindport =  a['bind'][node.chef_environment]['port']
   end
+  # If binding param into the databag
+  if a['bind'] && a['bind'][node.chef_environment] && a['bind'][node.chef_environment]['ip'] && ipv4
+    node.normal['zabbix']['web']['ip'] << a['bind'][node.chef_environment]['ip']
+    bindings.push({"ip" =>  "#{a['bind'][node.chef_environment]['ip']}", "port" => "#{bindport}"})
+    if a['bind'] && a['bind'][node.chef_environment] && a['bind'][node.chef_environment]['ip6'] && ipv6
+      node.normal['zabbix']['web']['ip'] << a['bind'][node.chef_environment]['ip6']
+      bindings.push({"ip" =>  "[#{a['bind'][node.chef_environment]['ip6']}]", "port" => "#{bindport}"})
+    end
+    # Else retrieving them from the node
+  else
+    if ipv4
+      node.normal['zabbix']['web']['ip'] << "127.0.0.1"
+      node.normal['zabbix']['web']['ip'] << node["cloud"]["local_ipv4"]
+      bindings.push({"ip" =>  node['cloud']['local_ipv4'], "port" => "#{bindport}"})
+      bindings.push({"ip" =>  "127.0.0.1", "port" => "#{bindport}"})
+    end
+    if ipv6
+    node.normal['zabbix']['web']['ip'] << '::1'
+      node.normal['zabbix']['web']['ip'] <<  node["cloud"]["local_ipv6"] 
+      bindings.push({"ip" =>  "["+node['cloud']['local_ipv6']+"]", "port" => "#{bindport}"})
+      bindings.push({"ip" =>  "[::1]", "port" => "#{bindport}"})
+    end
+  end
 end
-node.save
 user node['zabbix']['web']['user']
-
 case node['platform_family']
 when "debian"
   %w{ php5-mysql php5-gd }.each do |pck|
@@ -126,11 +150,12 @@ web_app node['zabbix']['web']['fqdn'] do
   docroot node['zabbix']['web_dir']
   only_if { node['zabbix']['web']['fqdn'] != nil }
   php_settings node['zabbix']['web']['php']['settings']
-  bindip bindip
-  bindport bindport
+  bindinfo bindings 
   notifies :restart, "service[apache2]", :immediately 
 end  
 
 apache_site "000-default" do
   enable false
 end
+
+#node.save
