@@ -7,7 +7,7 @@ zabbix_server = search(:node, "role:zabbix-server AND chef_environment:#{node.ch
 if zabbix_server.length > 0
 
 	zabbix_server_ip = (zabbix_server["cloud"]) ? zabbix_server["cloud"]["local_ipv4"] : [ zabbix_server["ipaddress"] ]
-	node.set['zabbix']['agent']['servers'] = [ zabbix_server_ip ]
-	node.set['zabbix']['web']['ip'] = zabbix_server_ip
+	zabbix_server_ip6 = (zabbix_server["cloud"]["local_ipv6"]) ? zabbix_server["cloud"]["local_ipv6"] : "" 
+	node.set['zabbix']['agent']['servers'] = [ zabbix_server_ip, zabbix_server_ip6 ]
+	node.set['zabbix']['web']['ip'] = [ zabbix_server_ip, zabbix_server_ip6 ]
 end
-
