@@ -6,7 +6,7 @@ default['zabbix']['agent']['service_state']     = [:start, :enable]
 
 default['zabbix']['agent']['branch']            = "ZABBIX%20Latest%20Stable"
 #default['zabbix']['agent']['version']           = "2.0.8"
-default['zabbix']['agent']['version']           = "2.2.1"
+default['zabbix']['agent']['version']           = "2.2.3"
 #default['zabbix']['agent']['source_url']        = nil
 default['zabbix']['agent']['package_url']        = "http://repo.zabbix.com/zabbix/2.2/ubuntu/pool/main/z/zabbix/"
 #default['zabbix']['agent']['package_url']        = "http://repo.zabbix.com/zabbix/2.0/ubuntu/pool/main/z/zabbix/"
@@ -46,4 +46,4 @@ default['zabbix']['agent']['log_file']           = nil # default (Syslog / windo
 default['zabbix']['agent']['start_agents']       = nil # default (3)
 default['zabbix']['agent']['debug_level']        = nil # default (3)
 default['zabbix']['agent']['templates']          = []
-default['zabbix']['agent']['interfaces']         = [ "zabbix_agent" ]
+default['zabbix']['agent']['interfaces']         = [ "zabbix_agentv4" ]
