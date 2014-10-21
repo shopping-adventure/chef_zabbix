@@ -48,7 +48,6 @@ action :delete do
     # and we just treat it as the description field the api wants
     # 
     # The description on the lwrp becomes comments in the api
-
     noun = (new_resource.prototype) ? 'triggerprototype' : 'trigger'
     verb = 'delete'
 
@@ -60,13 +59,13 @@ action :delete do
 
     unless trigger_ids.empty?
       verb = 'delete'
-      params[:triggerid] = trigger_ids.first['triggerid']
+      params = trigger_ids.first['triggerid']
     end
 
     method = "#{noun}.#{verb}"
     connection.query(
       :method => method,
-      :params => params
+      :params => params.split(",")
     )
   end
   new_resource.updated_by_last_action(true)
