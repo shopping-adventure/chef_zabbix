@@ -44,14 +44,25 @@ root_dirs.each do |dir|
   end
 end
 
-node.normal['zabbix']['web']['ip'] = (node["cloud"]) ? node["cloud"]["local_ipv4"] : node["ipaddress"]
+#node.normal['zabbix']['web']['ip'] = (node["cloud"]) ? node["cloud"]["local_ipv4"] : node["ipaddress"]
 
+#Old api from kevin
 # Create api scripts folder and files
 remote_directory "/etc/zabbix/scripts/api" do
        source "scripts_api"
        files_owner "root"
        files_group "root"
        files_mode 00600
+       owner "root"
+       group "root"
+       action :create
+end
+
+remote_directory "/etc/zabbix/AlertScripts" do
+       source "AlertScripts"
+       files_owner "root"
+       files_group "root"
+       files_mode 00555
        owner "root"
        group "root"
        action :create
