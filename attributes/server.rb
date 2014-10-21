@@ -1,6 +1,6 @@
 include_attribute "zabbix"
 
-default['zabbix']['server']['version']                = "2.2.2"
+default['zabbix']['server']['version']                = "2.2.3"
 default['zabbix']['server']['branch']                 = "ZABBIX%20Latest%20Stable"
 default['zabbix']['server']['source_url']             = nil
 default['zabbix']['server']['install_method']         = "source"
@@ -19,7 +19,10 @@ default['zabbix']['server']['java_gateway'] = '127.0.0.1'
 default['zabbix']['server']['java_gateway_port'] = 10052
 default['zabbix']['server']['java_pollers'] = 0
 default['zabbix']['server']['startpinger'] = 100
+default['zabbix']['server']['startpoller'] = 30
+default['zabbix']['server']['starthttppoller'] = 10
 
 default['zabbix']['server']['externalscriptspath'] = "/usr/local/scripts/zabbix/externalscripts/"
 
 default['zabbix']['server']['timeout'] = "3"
+default['zabbix']['server']['cachesize'] = "32M"
